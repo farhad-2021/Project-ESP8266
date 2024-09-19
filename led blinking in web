@@ -1,0 +1,95 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+
+#define LED_PIN D6  // The ESP8266 pin connected to the LED
+
+// Replace with your actual Wi-Fi credentials
+const char* ssid = "TP-Link_AEDA";          // Replace with your Wi-Fi SSID
+const char* password = "00000000";  // Replace with your Wi-Fi password
+
+ESP8266WebServer server(80); // Create an ESP8266WebServer object on port 80
+
+int LED_state = LOW;
+
+// Function to generate HTML content
+String getHTML() {
+  String html = "<!DOCTYPE HTML>";
+  html += "<html>";
+  html += "<head>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<title>ESP8266 LED Control</title>";
+  html += "<style>";
+  html += "body { font-family: Arial, sans-serif; color: #fff; text-align: center; padding: 20px; transition: background-color 0.5s ease; }";
+  html += "h1 { font-size: 2em; margin-bottom: 20px; }";
+  html += "p { font-size: 1.5em; margin-bottom: 30px; }";
+  html += "a { display: inline-block; padding: 10px 20px; font-size: 1.2em; text-decoration: none; border-radius: 5px; color: #fff; background-color: #333; transition: background-color 0.3s; }";
+  html += "a:hover { background-color: #555; }";
+  html += "span { font-weight: bold; }";
+  html += "</style>";
+  
+  // JavaScript for background color change
+  html += "<script>";
+  html += "let colors = ['#ff7e5f', '#feb47b', '#6a82fb', '#fc5c7d', '#43cea2', '#185a9d'];";
+  html += "let index = 0;";
+  html += "function changeBackground() {";
+  html += "  document.body.style.background = colors[index];";
+  html += "  index = (index + 1) % colors.length;";
+  html += "}";
+  html += "setInterval(changeBackground, 2000);"; // Change color every 2 seconds
+  html += "</script>";
+  
+  html += "</head>";
+  html += "<body onload='changeBackground()'>"; // Call the color-changing function on page load
+  html += "<h1>LED Control</h1>";
+  html += "<p>LED state: <span style='color: " + String(LED_state == LOW ? "#f44336" : "#4caf50") + ";'>" + String(LED_state == LOW ? "OFF" : "ON") + "</span></p>";
+  html += "<a href='/led/on'>Turn ON</a>";
+  html += "<br><br>";
+  html += "<a href='/led/off'>Turn OFF</a>";
+  html += "</body>";
+  html += "</html>";
+  return html;
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LED_state);
+
+  // Connect to Wi-Fi
+  Serial.println("Connecting to WiFi...");
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println();
+  Serial.println("Connected to WiFi");
+  Serial.print("ESP8266 IP Address: ");
+  Serial.println(WiFi.localIP());
+
+  // Define route handlers
+  server.on("/", HTTP_GET, []() {
+    server.send(200, "text/html", getHTML());
+  });
+
+  server.on("/led/on", HTTP_GET, []() {
+    LED_state = HIGH;
+    digitalWrite(LED_PIN, LED_state);
+    server.send(200, "text/html", getHTML());
+  });
+
+  server.on("/led/off", HTTP_GET, []() {
+    LED_state = LOW;
+    digitalWrite(LED_PIN, LED_state);
+    server.send(200, "text/html", getHTML());
+  });
+
+  // Start the server
+  server.begin();
+}
+
+void loop() {
+  server.handleClient(); // Handle client requests
+}
